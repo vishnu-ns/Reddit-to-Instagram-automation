@@ -1,15 +1,16 @@
-import requests
-import praw
+import json
+import logging
+import os
+import time
 import urllib.parse
 import urllib.request
-import logging
-import pandas as pd
-import time
-from pytz import timezone
 from datetime import datetime
-import os
-import json
+
+import pandas as pd
+import praw
+import requests
 from better_profanity import profanity
+from pytz import timezone
 
 start = time.time()
 print('running...')
@@ -17,7 +18,7 @@ print('running...')
 INSTAGRAM_APP_ID = os.environ['INSTAGRAM_APP_ID']
 IG_USER_ID = os.environ['IG_USER_ID']
 
-IMGUR_CLIENT_ID =  os.environ['IMGUR_CLIENT_ID']
+IMGUR_CLIENT_ID = os.environ['IMGUR_CLIENT_ID']
 IMGUR_CLIENT_SECRET = my_secret = os.environ['IMGUR_CLIENT_SECRET']
 
 REDDIT_CLIENT_SECRET = os.environ['REDDIT_CLIENT_SECRET']
@@ -40,7 +41,6 @@ logger = logging.getLogger(__name__)
 df = pd.read_csv('my_reddit_meme_posts.csv')
 database_links = df['short_link'].tolist()
 
-
 # Task 1 Get the reddit posts
 red = praw.Reddit(client_id=REDDIT_CLEINT_ID,
                   client_secret=REDDIT_CLIENT_SECRET,
@@ -54,7 +54,7 @@ for i in subred:
         # valid instagram aspect ratios
         width = i.preview['images'][0]['source']['width']
         height = i.preview['images'][0]['source']['height']
-        aspect_ratio = width/height
+        aspect_ratio = width / height
         if (aspect_ratio >= 0.8) & (aspect_ratio <= 1.19):
             red_post = i
             break
@@ -125,34 +125,33 @@ if imgur_link_jpg:
 if container_id:
     publish_url = f'https://graph.facebook.com/v13.0/{IG_USER_ID}/media_publish?creation_id={container_id}&access_token={USER_ACCESS}'
     try:
-        lim = requests.get(f'https://graph.facebook.com/v13.0/{IG_USER_ID}/content_publishing_limit?fields=quota_usage,rate_limit_settings&access_token={USER_ACCESS}')
+        lim = requests.get(
+            f'https://graph.facebook.com/v13.0/{IG_USER_ID}/content_publishing_limit?fields=quota_usage,rate_limit_settings&access_token={USER_ACCESS}')
         lim_num = lim.json()['data'][0]['quota_usage']
         lim_num = int(lim_num)
         lim_left_before = 25 - lim_num
         lim_left_after = lim_left_before - 1
         print(lim_left_after, 'posts left!')
-      
+
         with open('posts_left.json', 'w') as f:
-          json.dump({'posts_left': lim_left_after}, f)
-          
+            json.dump({'posts_left': lim_left_after}, f)
+
         if lim_num <= 25:
             r_publish = requests.post(publish_url)
             print(r_publish.json()['id'])
             print('Post is live!')
             logger.log(10, f'{lim_left_after} posts left')
-            
+
         else:
             logger.fatal(f'limit exhausted! {lim_left_after} left')
             print('fatal error, no post left please stop!')
             raise FutureWarning
-            
+
     except Exception as e:
         logger.log(e)
-
 
 end = time.time()
 ind_time = datetime.now(timezone("Asia/Kolkata")).strftime('%Y-%m-%d %I:%M:%S %p')
 print('I ran at', ind_time)
 logger.info(f"Post created at {ind_time}")
-print('Run time ', round(end-start, 2), 'seconds')
-
+print('Run time ', round(end - start, 2), 'seconds')
